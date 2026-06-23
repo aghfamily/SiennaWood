@@ -252,23 +252,29 @@
     .attachment-item a:hover { text-decoration: underline; }
     .attachment-del { opacity: 0; background: none; border: none; color: #e74c3c; cursor: pointer; font-size: .7rem; padding: 0 2px; flex-shrink: 0; }
     .attachment-item:hover .attachment-del { opacity: 1; }
-    .add-attachment-row { display: flex; align-items: center; gap: .4rem; margin-top: .3rem; flex-wrap: wrap; }
+    .att-upload-wrap { position: relative; display: inline-block; margin-top: .35rem; }
     .add-attachment-btn {
-      font-size: .72rem; color: var(--blue); background: none; border: none;
-      cursor: pointer; padding: .15rem 0; flex-shrink: 0;
+      font-size: .72rem; color: var(--blue); background: none; border: 1px solid var(--blue);
+      border-radius: 4px; cursor: pointer; padding: .18rem .55rem; flex-shrink: 0;
     }
-    .add-attachment-btn:hover { text-decoration: underline; }
-    .attachment-inline { display: none; align-items: center; gap: .4rem; flex: 1; min-width: 200px; }
-    .attachment-inline.visible { display: flex; }
-    .attachment-inline input {
-      flex: 1; border: 1px solid var(--border); border-radius: 4px;
-      padding: .2rem .45rem; font-size: .78rem; font-family: inherit; outline: none;
+    .add-attachment-btn:hover { background: #e8f5fb; }
+    .att-dropdown {
+      display: none; position: absolute; left: 0; top: calc(100% + 4px); z-index: 200;
+      background: #fff; border: 1px solid var(--border); border-radius: 6px;
+      box-shadow: 0 4px 14px rgba(0,0,0,.12); padding: .7rem; min-width: 230px;
     }
-    .attachment-inline input:focus { border-color: var(--blue); }
-    .attachment-inline button {
-      padding: .2rem .5rem; background: var(--blue); color: white;
-      border: none; border-radius: 4px; cursor: pointer; font-size: .72rem; flex-shrink: 0;
+    .att-dropdown.open { display: block; }
+    .att-drop-label { font-size: .75rem; font-weight: 600; color: var(--dark); margin-bottom: .45rem; display: block; }
+    .att-file-btn {
+      display: block; width: 100%; text-align: center; padding: .45rem;
+      background: var(--blue); color: #fff; border: none; border-radius: 5px;
+      cursor: pointer; font-size: .8rem; font-family: inherit; font-weight: 600;
     }
+    .att-file-btn:hover { opacity: .88; }
+    .att-progress { font-size: .72rem; color: #666; margin-top: .4rem; text-align: center; display: none; }
+    .att-progress.visible { display: block; }
+    .att-progress-bar-wrap { height: 4px; background: #e0eaf0; border-radius: 2px; margin-top: .3rem; overflow: hidden; }
+    .att-progress-bar { height: 100%; background: var(--blue); border-radius: 2px; transition: width .2s; }
 
     .add-item-row { display: flex; gap: .6rem; margin-top: 1rem; }
     .add-item-input {
@@ -287,6 +293,23 @@
     .empty-state { text-align: center; padding: 3rem 1rem; color: #9aabb8; }
     .empty-state .empty-icon { font-size: 3rem; margin-bottom: .8rem; }
     .empty-state p { font-size: .95rem; }
+
+    .confirm-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 500; padding: 1rem;
+    }
+    .confirm-overlay.hidden { display: none; }
+    .confirm-box {
+      background: var(--white); border-radius: 12px; padding: 1.6rem 1.8rem;
+      max-width: 360px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,.18);
+    }
+    .confirm-box p { font-size: .95rem; color: var(--dark); margin: 0 0 1.3rem; line-height: 1.5; font-weight: 500; }
+    .confirm-btns { display: flex; gap: .7rem; justify-content: flex-end; }
+    #confirmCancel { padding: .5rem 1.1rem; border: 1.5px solid var(--border); border-radius: 7px; background: #fff; cursor: pointer; font-size: .88rem; font-family: inherit; color: var(--dark); transition: background .15s; }
+    #confirmCancel:hover { background: #f5f5f5; }
+    #confirmOk { padding: .5rem 1.1rem; border: none; border-radius: 7px; background: #e74c3c; color: #fff; cursor: pointer; font-size: .88rem; font-family: inherit; font-weight: 700; transition: opacity .15s; }
+    #confirmOk:hover { opacity: .88; }
 
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,.45);
@@ -447,51 +470,74 @@
     .avail-save-btn:hover { background: #1a90c9; }
 
     /* ── Calendar ──────────────────────────────── */
-    .cal-wrap { max-width: 860px; }
-    .cal-nav {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 1.2rem;
-    }
-    .cal-nav h2 { font-size: 1.2rem; font-weight: 800; color: var(--dark); font-family: Arial, sans-serif; }
-    .cal-arrow {
-      width: 36px; height: 36px; border-radius: 50%;
-      border: 2px solid var(--border); background: var(--white);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; font-size: 1rem; color: var(--dark);
-      transition: all .18s;
-    }
+    /* ── Calendar ── */
+    .cal-wrap { max-width: 900px; }
+    .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+    .cal-nav h2 { font-size: 1.05rem; font-weight: 800; color: var(--dark); margin: 0; }
+    .cal-arrow { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); background: var(--white); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; color: var(--dark); transition: all .18s; flex-shrink: 0; }
     .cal-arrow:hover { border-color: var(--blue); color: var(--blue); background: #e8f6fd; }
     .cal-arrow.disabled { opacity: .3; cursor: default; pointer-events: none; }
-    .cal-grid {
-      display: grid; grid-template-columns: repeat(7, 1fr);
-      gap: 4px;
-    }
-    .cal-day-header {
-      text-align: center; font-size: .72rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: .6px;
-      color: #9aabb8; padding: .4rem 0;
-    }
-    .cal-cell {
-      min-height: 90px; background: var(--white);
-      border: 1px solid var(--border); border-radius: 8px;
-      padding: .4rem .5rem; position: relative;
-      transition: border-color .18s;
-    }
+
+    /* View toggle */
+    .cal-view-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: .3rem; }
+    .cal-vtoggle { padding: .28rem .75rem; font-size: .78rem; font-weight: 600; background: #fff; border: none; cursor: pointer; color: #7a9ab0; transition: all .15s; }
+    .cal-vtoggle:not(:last-child) { border-right: 1px solid var(--border); }
+    .cal-vtoggle.active { background: var(--blue); color: #fff; }
+    .cal-vtoggle:hover:not(.active) { background: #f0f9ff; }
+
+    /* Month grid */
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-day-header { text-align: center; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #9aabb8; padding: .4rem 0; }
+    .cal-cell { min-height: 80px; background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: .35rem .4rem; transition: border-color .18s; }
     .cal-cell:hover { border-color: var(--blue); }
-    .cal-cell.empty { background: transparent; border-color: transparent; }
+    .cal-cell.empty { background: transparent; border-color: transparent; pointer-events: none; }
     .cal-cell.today { border-color: var(--blue); background: #f0f9ff; }
-    .cal-date {
-      font-size: .78rem; font-weight: 700; color: #9aabb8; margin-bottom: .3rem;
-    }
+    .cal-cell-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: .25rem; }
+    .cal-date { font-size: .75rem; font-weight: 700; color: #9aabb8; }
     .cal-cell.today .cal-date { color: var(--blue); }
-    .cal-note {
-      font-size: .75rem; color: var(--dark); line-height: 1.4;
-      width: 100%; background: transparent; border: none; outline: none;
-      resize: none; font-family: inherit; cursor: text;
-      min-height: 58px;
-    }
-    .cal-note::placeholder { color: #d0dde7; }
-    .cal-note:focus { color: var(--dark); }
+    .cal-day-link { cursor: pointer; }
+    .cal-day-link:hover { text-decoration: underline; color: var(--blue); }
+    .cal-add-btn { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); background: #fff; color: #9aabb8; font-size: .8rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s; }
+    .cal-add-btn:hover { border-color: var(--blue); color: var(--blue); background: #e8f6fd; }
+    .cal-chips { display: flex; flex-direction: column; gap: 2px; }
+    .cal-chip { display: flex; align-items: center; background: #e8f5fb; border-radius: 3px; padding: 1px 4px; font-size: .68rem; gap: 3px; }
+    .cal-chip-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dark); }
+    .cal-chip-del { background: none; border: none; color: #b0c8d8; cursor: pointer; font-size: .7rem; padding: 0; line-height: 1; flex-shrink: 0; }
+    .cal-chip-del:hover { color: #e74c3c; }
+    .cal-more { font-size: .65rem; color: #9aabb8; padding: 1px 2px; }
+    .cal-inline-add { display: none; margin-top: .25rem; }
+    .cal-inline-add.open { display: block; }
+    .cal-inline-input { width: 100%; border: 1px solid var(--blue); border-radius: 4px; padding: .18rem .35rem; font-size: .73rem; font-family: inherit; outline: none; box-sizing: border-box; }
+
+    /* Week view */
+    .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .week-col { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: .5rem; display: flex; flex-direction: column; gap: .35rem; min-height: 180px; }
+    .week-col.today { border-color: var(--blue); background: #f0f9ff; }
+    .week-col-header { display: flex; flex-direction: column; align-items: center; padding-bottom: .35rem; border-bottom: 1px solid var(--border); }
+    .week-day-name { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #9aabb8; }
+    .week-day-num { font-size: 1.05rem; font-weight: 800; color: var(--dark); cursor: pointer; }
+    .week-day-num:hover { color: var(--blue); }
+    .week-col.today .week-day-num { color: var(--blue); }
+    .week-entries { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+    .week-entry { display: flex; align-items: flex-start; gap: 3px; background: #e8f5fb; border-radius: 4px; padding: 3px 5px; font-size: .75rem; }
+    .week-entry-text { flex: 1; cursor: pointer; color: var(--dark); line-height: 1.3; word-break: break-word; }
+    .week-entry-text:hover { text-decoration: underline; }
+    .week-add-row { margin-top: auto; }
+    .week-add-row .cal-inline-input { width: 100%; box-sizing: border-box; font-size: .75rem; }
+
+    /* Day view */
+    .day-view { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; }
+    .day-view.today { border-color: var(--blue); }
+    .day-entries { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; min-height: 60px; }
+    .day-entry { display: flex; align-items: center; gap: .6rem; background: #f0f9ff; border-left: 3px solid var(--blue); border-radius: 0 6px 6px 0; padding: .55rem .75rem; }
+    .day-entry-text { flex: 1; font-size: .9rem; color: var(--dark); }
+    .day-entry-edit { background: none; border: none; cursor: pointer; font-size: .85rem; color: #9aabb8; padding: 0 2px; }
+    .day-entry-edit:hover { color: var(--blue); }
+    .day-entry-del { background: none; border: none; cursor: pointer; font-size: .8rem; color: #9aabb8; padding: 0 2px; }
+    .day-entry-del:hover { color: #e74c3c; }
+    .day-add-row { display: flex; gap: .5rem; }
+    .day-add-input { flex: 1; padding: .6rem .9rem; border: 2px solid var(--border); border-radius: var(--radius); font-size: .9rem; font-family: inherit; outline: none; transition: border-color .18s; }
+    .day-add-input:focus { border-color: var(--blue); }
 
     .loading-screen {
       position: fixed; inset: 0; background: var(--blue);
@@ -583,6 +629,16 @@
 
 <main id="mainContent"></main>
 
+<div class="confirm-overlay hidden" id="confirmModal">
+  <div class="confirm-box">
+    <p id="confirmMsg">Are you sure you want to delete this?</p>
+    <div class="confirm-btns">
+      <button id="confirmCancel">Cancel</button>
+      <button id="confirmOk">Delete</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="addSectionModal">
   <div class="modal">
     <h2>Add New Section</h2>
@@ -622,6 +678,8 @@ setTimeout(() => {
 import { initializeApp }                          from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getFirestore, collection, doc, setDoc,
          updateDoc, deleteDoc, onSnapshot }        from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getStorage, ref, uploadBytesResumable,
+         getDownloadURL, deleteObject }            from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 
 // ── Firebase init ────────────────────────────────
 const firebaseConfig = {
@@ -632,8 +690,9 @@ const firebaseConfig = {
   messagingSenderId: "11892239739",
   appId:             "1:11892239739:web:70ef907a698979d37e61de"
 };
-const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
+const app     = initializeApp(firebaseConfig);
+const db      = getFirestore(app);
+const storage = getStorage(app);
 
 // ── Constants ────────────────────────────────────
 const ICONS  = ['📋','✅','🏗️','👥','📢','💡','🍔','🔧','📦','🚗','💰','📄','🖥️','🔑','📅','🎯','🏪','⚡','🛡️','📞'];
@@ -1042,7 +1101,9 @@ const CAL_MONTHS = [
   { year: 2026, month: 9 },  // October
   { year: 2026, month: 10 }, // November
 ];
-let calIndex = 0;
+let calIndex  = 0;
+let calView   = 'month'; // 'month' | 'week' | 'day'
+let calDayStr = '';      // YYYY-MM-DD anchor for week/day views
 
 // ── Render helpers ───────────────────────────────
 function renderCurrent() {
@@ -1143,7 +1204,7 @@ function renderHiring(main, sec) {
 
   // Delete row
   main.querySelectorAll('[data-delcid]').forEach(el => {
-    el.addEventListener('click', () => deleteCandidate(sec.id, el.dataset.delcid));
+    el.addEventListener('click', () => confirmDelete('Delete this candidate?', () => deleteCandidate(sec.id, el.dataset.delcid)));
   });
 
   document.getElementById('addCandidateBtn').addEventListener('click', () => addCandidate(sec.id));
@@ -1231,58 +1292,309 @@ function closeAvailModal() {
 }
 
 // ── Planner / Calendar ───────────────────────────
-function renderPlanner(main, sec) {
-  const notes   = sec.notes || {};
-  const { year, month } = CAL_MONTHS[calIndex];
-  const monthName = new Date(year, month, 1).toLocaleString('en-AU', { month: 'long', year: 'numeric' });
-  const rawFirst = new Date(year, month, 1).getDay(); // 0=Sun
-  const firstDay  = (rawFirst + 6) % 7; // 0=Mon
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const today = new Date();
-  const DAY_HEADERS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const CAL_DAY_HEADERS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
-  let cells = '';
-  // Empty cells before first day
-  for (let i = 0; i < firstDay; i++) {
-    cells += `<div class="cal-cell empty"></div>`;
-  }
-  // Day cells
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key     = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const note    = notes[key] || '';
-    const isToday = today.getFullYear()===year && today.getMonth()===month && today.getDate()===d;
-    cells += `
-      <div class="cal-cell${isToday?' today':''}">
-        <div class="cal-date">${d}</div>
-        <textarea class="cal-note" data-key="${key}" placeholder="Add note…" rows="3">${note}</textarea>
+function getCalEntries(notes, key) {
+  const v = notes[key];
+  if (!v) return [];
+  if (typeof v === 'string') return v.trim() ? [{id: key+'_0', text: v}] : [];
+  return Array.isArray(v) ? v : [];
+}
+
+function calTodayStr() {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+}
+
+function calDStr(y, m1, d) {
+  return `${y}-${String(m1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+function calShiftDay(str, n) {
+  const [y,mo,d] = str.split('-').map(Number);
+  const dt = new Date(y, mo-1, d);
+  dt.setDate(dt.getDate() + n);
+  return calDStr(dt.getFullYear(), dt.getMonth()+1, dt.getDate());
+}
+
+function calMondayOfWeek(str) {
+  const [y,mo,d] = str.split('-').map(Number);
+  const dt = new Date(y, mo-1, d);
+  const dow = dt.getDay();
+  dt.setDate(dt.getDate() + (dow === 0 ? -6 : 1 - dow));
+  return calDStr(dt.getFullYear(), dt.getMonth()+1, dt.getDate());
+}
+
+function calFmt(str, opts) {
+  const [y,mo,d] = str.split('-').map(Number);
+  return new Date(y, mo-1, d).toLocaleString('en-AU', opts);
+}
+
+function renderPlanner(main, sec) {
+  const notes = sec.notes || {};
+  if (!calDayStr) calDayStr = calTodayStr();
+  const today = calTodayStr();
+
+  const viewToggle = `
+    <div class="cal-view-toggle">
+      <button class="cal-vtoggle${calView==='month'?' active':''}" data-view="month">Month</button>
+      <button class="cal-vtoggle${calView==='week'?' active':''}" data-view="week">Week</button>
+      <button class="cal-vtoggle${calView==='day'?' active':''}" data-view="day">Day</button>
+    </div>`;
+
+  let html = '';
+
+  if (calView === 'month') {
+    const {year, month} = CAL_MONTHS[calIndex];
+    const monthName  = new Date(year, month, 1).toLocaleString('en-AU', {month:'long', year:'numeric'});
+    const firstDay   = (new Date(year, month, 1).getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+
+    let cells = '';
+    for (let i = 0; i < firstDay; i++) cells += `<div class="cal-cell empty"></div>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key     = calDStr(year, month+1, d);
+      const entries = getCalEntries(notes, key);
+      const isToday = key === today;
+      const chips   = entries.slice(0,3).map(e => `
+        <div class="cal-chip">
+          <span class="cal-chip-text">${esc(e.text)}</span>
+          <button class="cal-chip-del" data-key="${key}" data-eid="${e.id}">×</button>
+        </div>`).join('') + (entries.length > 3 ? `<div class="cal-more">+${entries.length-3} more</div>` : '');
+      cells += `
+        <div class="cal-cell${isToday?' today':''}">
+          <div class="cal-cell-top">
+            <span class="cal-date cal-day-link" data-goto-day="${key}">${d}</span>
+            <button class="cal-add-btn" data-key="${key}">+</button>
+          </div>
+          ${entries.length ? `<div class="cal-chips">${chips}</div>` : ''}
+          <div class="cal-inline-add" id="iadd-${key}">
+            <input class="cal-inline-input" placeholder="Add entry…" data-key="${key}" />
+          </div>
+        </div>`;
+    }
+
+    html = `
+      <div class="cal-wrap">
+        <div class="cal-nav">
+          <button class="cal-arrow${calIndex===0?' disabled':''}" id="calPrev">&#8592;</button>
+          <div style="text-align:center">${viewToggle}<h2>${monthName}</h2></div>
+          <button class="cal-arrow${calIndex===CAL_MONTHS.length-1?' disabled':''}" id="calNext">&#8594;</button>
+        </div>
+        <div class="cal-grid">
+          ${CAL_DAY_HEADERS.map(h=>`<div class="cal-day-header">${h}</div>`).join('')}
+          ${cells}
+        </div>
+      </div>`;
+
+  } else if (calView === 'week') {
+    const monday  = calMondayOfWeek(calDayStr);
+    const days    = Array.from({length:7}, (_,i) => calShiftDay(monday, i));
+    const weekLbl = `${calFmt(days[0],{day:'numeric',month:'short'})} – ${calFmt(days[6],{day:'numeric',month:'short',year:'numeric'})}`;
+
+    const cols = days.map(key => {
+      const entries = getCalEntries(notes, key);
+      const isToday = key === today;
+      const [,mo,d] = key.split('-').map(Number);
+      const dt = new Date(key.split('-')[0], mo-1, d);
+      const entriesHtml = entries.map(e => `
+        <div class="week-entry">
+          <span class="week-entry-text" data-key="${key}" data-eid="${e.id}">${esc(e.text)}</span>
+          <button class="cal-chip-del" data-key="${key}" data-eid="${e.id}">×</button>
+        </div>`).join('');
+      return `
+        <div class="week-col${isToday?' today':''}">
+          <div class="week-col-header">
+            <span class="week-day-name">${dt.toLocaleString('en-AU',{weekday:'short'})}</span>
+            <span class="week-day-num cal-day-link" data-goto-day="${key}">${dt.getDate()}</span>
+          </div>
+          <div class="week-entries">${entriesHtml}</div>
+          <div class="week-add-row">
+            <input class="cal-inline-input" placeholder="Add…" data-key="${key}" />
+          </div>
+        </div>`;
+    }).join('');
+
+    html = `
+      <div class="cal-wrap" style="max-width:100%">
+        <div class="cal-nav">
+          <button class="cal-arrow" id="calPrev">&#8592;</button>
+          <div style="text-align:center">${viewToggle}<h2>${weekLbl}</h2></div>
+          <button class="cal-arrow" id="calNext">&#8594;</button>
+        </div>
+        <div class="week-grid">${cols}</div>
+      </div>`;
+
+  } else { // day
+    const entries  = getCalEntries(notes, calDayStr);
+    const dayLabel = calFmt(calDayStr, {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+    const isToday  = calDayStr === today;
+    const entriesHtml = entries.length === 0
+      ? `<p style="color:#aabbc8;font-style:italic;font-size:.88rem;margin:0">No entries yet — add one below.</p>`
+      : entries.map(e => `
+          <div class="day-entry">
+            <span class="day-entry-text" data-key="${calDayStr}" data-eid="${e.id}">${esc(e.text)}</span>
+            <button class="day-entry-edit" data-key="${calDayStr}" data-eid="${e.id}" title="Edit">✏️</button>
+            <button class="day-entry-del"  data-key="${calDayStr}" data-eid="${e.id}" title="Delete">✕</button>
+          </div>`).join('');
+
+    html = `
+      <div class="cal-wrap">
+        <div class="cal-nav">
+          <button class="cal-arrow" id="calPrev">&#8592;</button>
+          <div style="text-align:center">${viewToggle}<h2>${dayLabel}</h2></div>
+          <button class="cal-arrow" id="calNext">&#8594;</button>
+        </div>
+        <div class="day-view${isToday?' today':''}">
+          <div class="day-entries">${entriesHtml}</div>
+          <div class="day-add-row">
+            <input class="day-add-input" id="dayAddInput" placeholder="Add entry and press Enter…" />
+            <button class="add-item-btn" id="dayAddBtn" style="background:var(--blue)">Add</button>
+          </div>
+        </div>
       </div>`;
   }
 
-  main.innerHTML = `
-    <div class="cal-wrap">
-      <div class="cal-nav">
-        <button class="cal-arrow${calIndex===0?' disabled':''}" id="calPrev">&#8592;</button>
-        <h2>${monthName}</h2>
-        <button class="cal-arrow${calIndex===CAL_MONTHS.length-1?' disabled':''}" id="calNext">&#8594;</button>
-      </div>
-      <div class="cal-grid">
-        ${DAY_HEADERS.map(d=>`<div class="cal-day-header">${d}</div>`).join('')}
-        ${cells}
-      </div>
-    </div>`;
+  main.innerHTML = html;
 
-  document.getElementById('calPrev').addEventListener('click', () => { calIndex--; renderCurrent(); });
-  document.getElementById('calNext').addEventListener('click', () => { calIndex++; renderCurrent(); });
-
-  main.querySelectorAll('.cal-note').forEach(el => {
-    el.addEventListener('blur', () => saveCalendarNote(sec.id, el.dataset.key, el.value));
+  // Navigation
+  document.getElementById('calPrev').addEventListener('click', () => {
+    if (calView === 'month') { if (calIndex > 0) calIndex--; }
+    else if (calView === 'week') calDayStr = calShiftDay(calDayStr, -7);
+    else calDayStr = calShiftDay(calDayStr, -1);
+    renderCurrent();
   });
+  document.getElementById('calNext').addEventListener('click', () => {
+    if (calView === 'month') { if (calIndex < CAL_MONTHS.length-1) calIndex++; }
+    else if (calView === 'week') calDayStr = calShiftDay(calDayStr, 7);
+    else calDayStr = calShiftDay(calDayStr, 1);
+    renderCurrent();
+  });
+
+  // View toggle
+  main.querySelectorAll('[data-view]').forEach(el => {
+    el.addEventListener('click', () => {
+      calView = el.dataset.view;
+      if (!calDayStr) calDayStr = calTodayStr();
+      // Sync calIndex to calDayStr month when switching to month view
+      if (calView === 'month') {
+        const [y,mo] = calDayStr.split('-').map(Number);
+        const idx = CAL_MONTHS.findIndex(c => c.year===y && c.month===mo-1);
+        if (idx >= 0) calIndex = idx;
+      }
+      renderCurrent();
+    });
+  });
+
+  // Click day number → switch to day view
+  main.querySelectorAll('[data-goto-day]').forEach(el => {
+    el.addEventListener('click', () => { calDayStr = el.dataset.gotoDay; calView = 'day'; renderCurrent(); });
+  });
+
+  if (calView === 'month') {
+    // Toggle inline add
+    main.querySelectorAll('.cal-add-btn').forEach(el => {
+      el.addEventListener('click', () => {
+        const row = document.getElementById('iadd-' + el.dataset.key);
+        if (!row) return;
+        const opening = !row.classList.contains('open');
+        main.querySelectorAll('.cal-inline-add.open').forEach(r => r.classList.remove('open'));
+        if (opening) { row.classList.add('open'); row.querySelector('input').focus(); }
+      });
+    });
+    main.querySelectorAll('.cal-inline-input').forEach(el => {
+      el.addEventListener('keydown', async e => {
+        if (e.key === 'Enter') {
+          const text = el.value.trim(); if (!text) return;
+          el.value = '';
+          const row = document.getElementById('iadd-' + el.dataset.key);
+          if (row) row.classList.remove('open');
+          await addCalendarEntry(sec.id, el.dataset.key, text);
+        }
+        if (e.key === 'Escape') { el.value=''; const row=document.getElementById('iadd-'+el.dataset.key); if(row) row.classList.remove('open'); }
+      });
+    });
+    main.querySelectorAll('.cal-chip-del').forEach(el => {
+      el.addEventListener('click', e => { e.stopPropagation(); confirmDelete('Delete this entry?', () => deleteCalendarEntry(sec.id, el.dataset.key, el.dataset.eid)); });
+    });
+  }
+
+  if (calView === 'week') {
+    main.querySelectorAll('.cal-chip-del').forEach(el => {
+      el.addEventListener('click', () => confirmDelete('Delete this entry?', () => deleteCalendarEntry(sec.id, el.dataset.key, el.dataset.eid)));
+    });
+    main.querySelectorAll('.week-add-row .cal-inline-input').forEach(el => {
+      el.addEventListener('keydown', async e => {
+        if (e.key === 'Enter') { const text=el.value.trim(); if(!text) return; el.value=''; await addCalendarEntry(sec.id, el.dataset.key, text); }
+      });
+    });
+    // Click entry text to edit inline
+    main.querySelectorAll('.week-entry-text').forEach(el => {
+      el.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.className = 'cal-inline-input'; input.style.width='100%';
+        input.value = el.textContent;
+        input.dataset.key = el.dataset.key; input.dataset.eid = el.dataset.eid;
+        el.parentNode.replaceChild(input, el);
+        input.focus();
+        const finish = async () => { const t=input.value.trim(); if(t && t!==el.textContent) await updateCalendarEntry(sec.id,input.dataset.key,input.dataset.eid,t); else renderCurrent(); };
+        input.addEventListener('keydown', e => { if(e.key==='Enter') finish(); if(e.key==='Escape') renderCurrent(); });
+        input.addEventListener('blur', finish);
+      });
+    });
+  }
+
+  if (calView === 'day') {
+    const addEntry = async () => {
+      const input = document.getElementById('dayAddInput');
+      const text = input.value.trim(); if (!text) return;
+      input.value = '';
+      await addCalendarEntry(sec.id, calDayStr, text);
+    };
+    document.getElementById('dayAddBtn').addEventListener('click', addEntry);
+    document.getElementById('dayAddInput').addEventListener('keydown', e => { if(e.key==='Enter') addEntry(); });
+    main.querySelectorAll('.day-entry-del').forEach(el => {
+      el.addEventListener('click', () => confirmDelete('Delete this entry?', () => deleteCalendarEntry(sec.id, el.dataset.key, el.dataset.eid)));
+    });
+    main.querySelectorAll('.day-entry-edit').forEach(el => {
+      el.addEventListener('click', () => {
+        const eid = el.dataset.eid;
+        const span = main.querySelector(`.day-entry-text[data-eid="${eid}"]`);
+        if (!span) return;
+        const input = document.createElement('input');
+        input.className = 'day-add-input'; input.style.flex='1';
+        input.value = span.textContent;
+        span.parentNode.insertBefore(input, span);
+        span.style.display = 'none'; el.style.display = 'none';
+        input.focus();
+        const finish = async () => { const t=input.value.trim(); if(t && t!==span.textContent) await updateCalendarEntry(sec.id,el.dataset.key,eid,t); else renderCurrent(); };
+        input.addEventListener('keydown', e => { if(e.key==='Enter') finish(); if(e.key==='Escape') renderCurrent(); });
+        input.addEventListener('blur', finish);
+      });
+    });
+  }
 }
 
-async function saveCalendarNote(secId, key, value) {
+async function addCalendarEntry(secId, key, text) {
+  const sec = sections.find(s => s.id === secId);
+  if (!sec) return;
+  const existing = getCalEntries(sec.notes || {}, key);
   setSaving();
-  // Dot-notation update: only writes the one changed key — prevents concurrent overwrites
-  await updateDoc(doc(db, 'sections', secId), { [`notes.${key}`]: value });
+  await updateDoc(doc(db, 'sections', secId), { [`notes.${key}`]: [...existing, {id:'e_'+Date.now(), text}] });
+}
+
+async function updateCalendarEntry(secId, key, entryId, text) {
+  const sec = sections.find(s => s.id === secId);
+  if (!sec) return;
+  setSaving();
+  await updateDoc(doc(db, 'sections', secId), { [`notes.${key}`]: getCalEntries(sec.notes||{},key).map(e => e.id===entryId ? {...e,text} : e) });
+}
+
+async function deleteCalendarEntry(secId, key, entryId) {
+  const sec = sections.find(s => s.id === secId);
+  if (!sec) return;
+  setSaving();
+  await updateDoc(doc(db, 'sections', secId), { [`notes.${key}`]: getCalEntries(sec.notes||{},key).filter(e => e.id!==entryId) });
 }
 
 function renderNav() {
@@ -1379,14 +1691,18 @@ function renderRestaurantPlans(main, sec) {
             📄 ${d.url
               ? `<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name||d.url)}</a>`
               : `<span>${esc(d.name)}</span>`}
-            <button class="query-del" data-ddel="${d.id}" style="margin-left:auto">✕</button>
+            <button class="query-del" data-ddel="${d.id}" data-dpath="${esc(d.storagePath||'')}" style="margin-left:auto">✕</button>
           </li>`).join('')}</ul>`}
-    <div class="add-attachment-row" style="margin-top:.6rem">
+    <div class="att-upload-wrap" style="margin-top:.6rem">
       <button class="add-attachment-btn" id="openAddDocBtn">📎 Add document</button>
-      <div class="attachment-inline" id="addDocRow">
-        <input id="docUrlInput"  type="url"  placeholder="Paste link (URL)…" />
-        <input id="docNameInput" type="text" placeholder="Label (optional)" style="max-width:140px" />
-        <button id="confirmAddDocBtn">Add</button>
+      <div class="att-dropdown" id="addDocDropdown">
+        <span class="att-drop-label">Upload photo or file</span>
+        <input type="file" id="planDocFileInput" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none" />
+        <button class="att-file-btn" id="planDocPickBtn">📁 Choose file…</button>
+        <div class="att-progress" id="planDocProg">
+          <span id="planDocProgTxt">Uploading…</span>
+          <div class="att-progress-bar-wrap"><div class="att-progress-bar" id="planDocProgBar" style="width:0%"></div></div>
+        </div>
       </div>
     </div>`;
 
@@ -1430,7 +1746,7 @@ function renderRestaurantPlans(main, sec) {
     el.addEventListener('click', () => toggleQuery(sec.id, el.dataset.qtoggle));
   });
   main.querySelectorAll('[data-qdel]').forEach(el => {
-    el.addEventListener('click', () => deleteQuery(sec.id, el.dataset.qdel));
+    el.addEventListener('click', () => confirmDelete('Delete this query?', () => deleteQuery(sec.id, el.dataset.qdel)));
   });
   main.querySelectorAll('[data-qedit]').forEach(el => {
     const save = () => editQuery(sec.id, el.dataset.qedit, el.value);
@@ -1438,27 +1754,32 @@ function renderRestaurantPlans(main, sec) {
     el.addEventListener('keydown', e => { if (e.key === 'Enter') el.blur(); });
   });
   main.querySelectorAll('[data-ddel]').forEach(el => {
-    el.addEventListener('click', () => deletePlanDoc(sec.id, el.dataset.ddel));
+    el.addEventListener('click', () => confirmDelete('Delete this document?', () => deletePlanDoc(sec.id, el.dataset.ddel, el.dataset.dpath)));
   });
   document.getElementById('addQueryBtn').addEventListener('click', () => addQuery(sec.id));
   document.getElementById('newQueryInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') addQuery(sec.id);
   });
 
-  // Document add
-  const openDocBtn    = document.getElementById('openAddDocBtn');
-  const docRow        = document.getElementById('addDocRow');
-  const docUrlInput   = document.getElementById('docUrlInput');
-  const docNameInput  = document.getElementById('docNameInput');
-  const confirmDocBtn = document.getElementById('confirmAddDocBtn');
+  // Document add — file upload
+  const openDocBtn   = document.getElementById('openAddDocBtn');
+  const docDropdown  = document.getElementById('addDocDropdown');
+  const docFileInput = document.getElementById('planDocFileInput');
+  const docPickBtn   = document.getElementById('planDocPickBtn');
 
-  openDocBtn.addEventListener('click', () => {
-    docRow.classList.toggle('visible');
-    if (docRow.classList.contains('visible')) docUrlInput.focus();
+  openDocBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = docDropdown.classList.contains('open');
+    document.querySelectorAll('.att-dropdown.open').forEach(d => d.classList.remove('open'));
+    if (!isOpen) docDropdown.classList.add('open');
   });
-  const submitDoc = () => addPlanDoc(sec.id, docUrlInput.value, docNameInput.value);
-  confirmDocBtn.addEventListener('click', submitDoc);
-  docUrlInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitDoc(); });
+  docPickBtn.addEventListener('click', () => docFileInput.click());
+  docFileInput.addEventListener('change', () => {
+    const file = docFileInput.files[0];
+    if (!file) return;
+    uploadPlanDoc(sec.id, file);
+    docFileInput.value = '';
+  });
 }
 
 // ── Quotes ───────────────────────────────────────
@@ -1549,12 +1870,12 @@ function renderQuotes(main, sec) {
 
   // Delete row
   main.querySelectorAll('[data-qrdel]').forEach(el => {
-    el.addEventListener('click', () => deleteQuoteRow(sec.id, el.dataset.qrdel));
+    el.addEventListener('click', () => confirmDelete('Delete this quote row?', () => deleteQuoteRow(sec.id, el.dataset.qrdel)));
   });
 
   // Document delete
   main.querySelectorAll('[data-qdocdel]').forEach(el => {
-    el.addEventListener('click', () => deleteQuoteDoc(sec.id, el.dataset.qdocdel));
+    el.addEventListener('click', () => confirmDelete('Delete this document?', () => deleteQuoteDoc(sec.id, el.dataset.qdocdel)));
   });
 
   // Document add
@@ -1628,11 +1949,13 @@ function renderSection(main, sec) {
       if (filterGroup !== 'all' && itemGroup.get(i.id) !== filterGroup) return false;
       return true;
     };
-    // Remove headers that have no visible tasks after them
+    // Remove headers that have no visible tasks directly under them (stop at next header)
     const filtered = [];
     for (let i = 0; i < items.length; i++) {
       if (items[i].type === 'header') {
-        const hasVisible = items.slice(i+1).some(x => x.type !== 'header' && matchesFilters(x));
+        const nextHeader = items.findIndex((x, idx) => idx > i && x.type === 'header');
+        const end = nextHeader === -1 ? items.length : nextHeader;
+        const hasVisible = items.slice(i + 1, end).some(x => matchesFilters(x));
         if (hasVisible) filtered.push(items[i]);
       } else if (matchesFilters(items[i])) {
         filtered.push(items[i]);
@@ -1677,15 +2000,19 @@ function renderSection(main, sec) {
               ${(item.attachments||[]).map(a => `
                 <div class="attachment-item">
                   📎 <a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.name||a.url)}</a>
-                  <button class="attachment-del" data-del-att="${item.id}" data-attid="${a.id}">✕</button>
+                  <button class="attachment-del" data-del-att="${item.id}" data-attid="${a.id}" data-attpath="${esc(a.storagePath||'')}">✕</button>
                 </div>`).join('')}
             </div>` : ''}
-            <div class="add-attachment-row">
-              <button class="add-attachment-btn" data-open-att="${item.id}">📎 Add attachment</button>
-              <div class="attachment-inline" id="attrow-${item.id}">
-                <input id="atturl-${item.id}" placeholder="Paste link (URL)…" type="url" />
-                <input id="attname-${item.id}" placeholder="Label (optional)" style="max-width:130px" />
-                <button data-confirm-att="${item.id}">Add</button>
+            <div class="att-upload-wrap" id="attwrap-${item.id}">
+              <button class="add-attachment-btn" data-open-att="${item.id}">📎 Add file</button>
+              <div class="att-dropdown" id="attdrop-${item.id}">
+                <span class="att-drop-label">Upload photo or file</span>
+                <input type="file" id="attfile-${item.id}" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none" data-item="${item.id}" data-sec="${sec.id}" />
+                <button class="att-file-btn" data-pick-att="${item.id}">📁 Choose file…</button>
+                <div class="att-progress" id="attprog-${item.id}">
+                  <span id="attprogtxt-${item.id}">Uploading…</span>
+                  <div class="att-progress-bar-wrap"><div class="att-progress-bar" id="attprogressbar-${item.id}" style="width:0%"></div></div>
+                </div>
               </div>
             </div>
           </div>
@@ -1737,41 +2064,47 @@ function renderSection(main, sec) {
     el.addEventListener('click', () => toggleItem(sec.id, el.dataset.toggle));
   });
   main.querySelectorAll('[data-delete]').forEach(el => {
-    el.addEventListener('click', () => deleteItem(sec.id, el.dataset.delete));
+    el.addEventListener('click', () => confirmDelete('Delete this task?', () => deleteItem(sec.id, el.dataset.delete)));
   });
   main.querySelectorAll('[data-field]').forEach(el => {
     el.addEventListener('change', () => saveItemField(sec.id, el.dataset.item, el.dataset.field, el.value));
     el.addEventListener('blur',   () => saveItemField(sec.id, el.dataset.item, el.dataset.field, el.value));
   });
 
-  // Attachment: open inline input
+  // Attachment: toggle dropdown
   main.querySelectorAll('[data-open-att]').forEach(el => {
-    el.addEventListener('click', () => {
-      const row = document.getElementById('attrow-' + el.dataset.openAtt);
-      if (row) { row.classList.toggle('visible'); row.querySelector('input').focus(); }
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const drop = document.getElementById('attdrop-' + el.dataset.openAtt);
+      if (!drop) return;
+      const isOpen = drop.classList.contains('open');
+      document.querySelectorAll('.att-dropdown.open').forEach(d => d.classList.remove('open'));
+      if (!isOpen) drop.classList.add('open');
     });
   });
-  // Attachment: confirm add
-  main.querySelectorAll('[data-confirm-att]').forEach(el => {
+  // Close dropdown on outside click
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.att-dropdown.open').forEach(d => d.classList.remove('open'));
+  }, { once: false });
+  // Attachment: trigger file picker
+  main.querySelectorAll('[data-pick-att]').forEach(el => {
     el.addEventListener('click', () => {
-      const url  = document.getElementById('atturl-'  + el.dataset.confirmAtt);
-      const name = document.getElementById('attname-' + el.dataset.confirmAtt);
-      if (url) addAttachment(sec.id, el.dataset.confirmAtt, url.value, name ? name.value : '');
+      const fileInput = document.getElementById('attfile-' + el.dataset.pickAtt);
+      if (fileInput) fileInput.click();
     });
   });
-  // Attachment: enter key in url input
-  main.querySelectorAll('.attachment-inline input[type="url"]').forEach(el => {
-    const itemId = el.id.replace('atturl-', '');
-    el.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        const name = document.getElementById('attname-' + itemId);
-        addAttachment(sec.id, itemId, el.value, name ? name.value : '');
-      }
+  // Attachment: handle file selected
+  main.querySelectorAll('input[type="file"][data-item]').forEach(el => {
+    el.addEventListener('change', () => {
+      const file = el.files[0];
+      if (!file) return;
+      uploadAttachment(el.dataset.sec, el.dataset.item, file);
+      el.value = '';
     });
   });
   // Attachment: delete
   main.querySelectorAll('[data-del-att]').forEach(el => {
-    el.addEventListener('click', () => deleteAttachment(sec.id, el.dataset.delAtt, el.dataset.attid));
+    el.addEventListener('click', () => confirmDelete('Delete this attachment?', () => deleteAttachment(sec.id, el.dataset.delAtt, el.dataset.attid, el.dataset.attpath)));
   });
 
   document.getElementById('addItemBtn').addEventListener('click', () => addItem(sec.id));
@@ -1826,22 +2159,47 @@ async function saveItemField(secId, itemId, field, value) {
   await updateDoc(doc(db, 'sections', secId), { items: newItems });
 }
 
-async function addPlanDoc(secId, url, name) {
-  url = url.trim();
-  if (!url) return;
-  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  const newDoc = { id: 'd_' + Date.now(), url, name: name.trim() || url };
-  await updateDoc(doc(db, 'sections', secId), { documents: [...(sec.documents||[]), newDoc] });
+async function uploadPlanDoc(secId, file) {
+  const progWrap = document.getElementById('planDocProg');
+  const progTxt  = document.getElementById('planDocProgTxt');
+  const progBar  = document.getElementById('planDocProgBar');
+  if (progWrap) progWrap.classList.add('visible');
+
+  const storagePath = `documents/${secId}/${Date.now()}_${file.name}`;
+  const storageRef  = ref(storage, storagePath);
+  const task        = uploadBytesResumable(storageRef, file);
+
+  task.on('state_changed',
+    snap => {
+      const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+      if (progTxt) progTxt.textContent = `Uploading… ${pct}%`;
+      if (progBar) progBar.style.width = pct + '%';
+    },
+    err => {
+      if (progTxt) progTxt.textContent = 'Upload failed — check Storage rules.';
+      console.error(err);
+    },
+    async () => {
+      const url = await getDownloadURL(task.snapshot.ref);
+      const sec = sections.find(s => s.id === secId);
+      if (!sec) return;
+      setSaving();
+      const newDoc = { id: 'd_' + Date.now(), url, name: file.name, storagePath };
+      await updateDoc(doc(db, 'sections', secId), { documents: [...(sec.documents||[]), newDoc] });
+      const drop = document.getElementById('addDocDropdown');
+      if (drop) drop.classList.remove('open');
+    }
+  );
 }
 
-async function deletePlanDoc(secId, docId) {
+async function deletePlanDoc(secId, docId, storagePath) {
   const sec = sections.find(s => s.id === secId);
   if (!sec) return;
   setSaving();
   await updateDoc(doc(db, 'sections', secId), { documents: (sec.documents||[]).filter(d => d.id !== docId) });
+  if (storagePath) {
+    try { await deleteObject(ref(storage, storagePath)); } catch (_) {}
+  }
 }
 
 async function addQuery(secId) {
@@ -1931,27 +2289,75 @@ async function deleteQuoteDoc(secId, docId) {
   await updateDoc(doc(db, 'sections', secId), { documents: (sec.documents||[]).filter(d => d.id !== docId) });
 }
 
-async function addAttachment(secId, itemId, url, name) {
-  url = url.trim();
-  if (!url) return;
-  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  const att = { id: 'a_' + Date.now(), url, name: name.trim() || url };
-  await updateDoc(doc(db, 'sections', secId), {
-    items: (sec.items||[]).map(i => i.id !== itemId ? i : { ...i, attachments: [...(i.attachments||[]), att] })
-  });
+async function uploadAttachment(secId, itemId, file) {
+  const progWrap = document.getElementById('attprog-'       + itemId);
+  const progTxt  = document.getElementById('attprogtxt-'    + itemId);
+  const progBar  = document.getElementById('attprogressbar-'+ itemId);
+  if (progWrap) progWrap.classList.add('visible');
+
+  const storagePath = `attachments/${itemId}/${Date.now()}_${file.name}`;
+  const storageRef  = ref(storage, storagePath);
+  const task        = uploadBytesResumable(storageRef, file);
+
+  task.on('state_changed',
+    snap => {
+      const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+      if (progTxt)  progTxt.textContent  = `Uploading… ${pct}%`;
+      if (progBar)  progBar.style.width  = pct + '%';
+    },
+    err => {
+      if (progTxt) progTxt.textContent = 'Upload failed — check Storage rules.';
+      console.error(err);
+    },
+    async () => {
+      const url = await getDownloadURL(task.snapshot.ref);
+      const sec = sections.find(s => s.id === secId);
+      if (!sec) return;
+      setSaving();
+      const att = { id: 'a_' + Date.now(), url, name: file.name, storagePath };
+      await updateDoc(doc(db, 'sections', secId), {
+        items: (sec.items||[]).map(i => i.id !== itemId ? i : { ...i, attachments: [...(i.attachments||[]), att] })
+      });
+      // Close dropdown after success
+      const drop = document.getElementById('attdrop-' + itemId);
+      if (drop) drop.classList.remove('open');
+    }
+  );
 }
 
-async function deleteAttachment(secId, itemId, attId) {
+async function deleteAttachment(secId, itemId, attId, storagePath) {
   const sec = sections.find(s => s.id === secId);
   if (!sec) return;
   setSaving();
   await updateDoc(doc(db, 'sections', secId), {
     items: (sec.items||[]).map(i => i.id !== itemId ? i : { ...i, attachments: (i.attachments||[]).filter(a => a.id !== attId) })
   });
+  if (storagePath) {
+    try { await deleteObject(ref(storage, storagePath)); } catch (_) {}
+  }
 }
+
+// ── Confirm Delete Modal ─────────────────────────
+let _confirmCb = null;
+function confirmDelete(message, callback) {
+  document.getElementById('confirmMsg').textContent = message || 'Are you sure you want to delete this?';
+  _confirmCb = callback;
+  document.getElementById('confirmModal').classList.remove('hidden');
+}
+document.getElementById('confirmOk').addEventListener('click', () => {
+  document.getElementById('confirmModal').classList.add('hidden');
+  if (_confirmCb) { _confirmCb(); _confirmCb = null; }
+});
+document.getElementById('confirmCancel').addEventListener('click', () => {
+  document.getElementById('confirmModal').classList.add('hidden');
+  _confirmCb = null;
+});
+document.getElementById('confirmModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('confirmModal')) {
+    document.getElementById('confirmModal').classList.add('hidden');
+    _confirmCb = null;
+  }
+});
 
 // ── Add Section Modal ────────────────────────────
 function openAddSectionModal() {
