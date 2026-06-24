@@ -190,7 +190,8 @@
     .item-del-btn:hover { color: #e74c3c; }
 
     /* Restaurant Plans */
-    .plans-block { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 1.4rem; overflow: hidden; }
+    .plans-block { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 1.4rem; overflow: visible; }
+    .plans-block-header { border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0; }
     .plans-block-header { background: var(--dark); color: var(--white); padding: .7rem 1.1rem; font-weight: 700; font-size: .88rem; letter-spacing: .4px; }
     .plans-block-body { padding: 1rem 1.1rem; }
     .doc-list { list-style: none; }
@@ -1178,7 +1179,24 @@ function renderHiring(main, sec) {
           <li class="doc-item">📄 <a href="training-mccafe.pdf" target="_blank" rel="noopener">McCafé Training Pathway — March 2026</a></li>
           <li class="doc-item">📄 <a href="training-production.pdf" target="_blank" rel="noopener">Production Training Pathway — March 2026</a></li>
           <li class="doc-item">📄 <a href="training-service.pdf" target="_blank" rel="noopener">Service Training Pathway — March 2026</a></li>
+          ${(sec.trainingDocs||[]).map(d => `
+          <li class="doc-item">
+            📄 <a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name||d.url)}</a>
+            <button class="query-del" data-tdel="${d.id}" data-tpath="${esc(d.storagePath||'')}" style="margin-left:auto">✕</button>
+          </li>`).join('')}
         </ul>
+        <div class="att-upload-wrap" style="margin-top:.6rem">
+          <button class="add-attachment-btn" id="openAddTrainingDocBtn">📎 Add file</button>
+          <div class="att-dropdown" id="addTrainingDocDropdown">
+            <span class="att-drop-label">Upload training document</span>
+            <input type="file" id="trainingDocFileInput" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none" />
+            <button class="att-file-btn" id="trainingDocPickBtn">📁 Choose file…</button>
+            <div class="att-progress" id="trainingDocProg">
+              <span id="trainingDocProgTxt">Uploading…</span>
+              <div class="att-progress-bar-wrap"><div class="att-progress-bar" id="trainingDocProgBar" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>`;
 
@@ -1208,6 +1226,31 @@ function renderHiring(main, sec) {
   });
 
   document.getElementById('addCandidateBtn').addEventListener('click', () => addCandidate(sec.id));
+
+  // Training docs — delete
+  main.querySelectorAll('[data-tdel]').forEach(el => {
+    el.addEventListener('click', () => confirmDelete('Delete this training document?', () => deleteTrainingDoc(sec.id, el.dataset.tdel, el.dataset.tpath)));
+  });
+
+  // Training docs — upload
+  const openTrainingBtn   = document.getElementById('openAddTrainingDocBtn');
+  const trainingDropdown  = document.getElementById('addTrainingDocDropdown');
+  const trainingFileInput = document.getElementById('trainingDocFileInput');
+  const trainingPickBtn   = document.getElementById('trainingDocPickBtn');
+
+  openTrainingBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = trainingDropdown.classList.contains('open');
+    document.querySelectorAll('.att-dropdown.open').forEach(d => d.classList.remove('open'));
+    if (!isOpen) trainingDropdown.classList.add('open');
+  });
+  trainingPickBtn.addEventListener('click', () => trainingFileInput.click());
+  trainingFileInput.addEventListener('change', () => {
+    const file = trainingFileInput.files[0];
+    if (!file) return;
+    uploadTrainingDoc(sec.id, file);
+    trainingFileInput.value = '';
+  });
 }
 
 async function addCandidate(secId) {
@@ -1230,6 +1273,49 @@ async function deleteCandidate(secId, cid) {
   if (!sec) return;
   setSaving();
   await updateDoc(doc(db, 'sections', secId), { candidates: (sec.candidates||[]).filter(c => c.id !== cid) });
+}
+
+async function uploadTrainingDoc(secId, file) {
+  const progWrap = document.getElementById('trainingDocProg');
+  const progTxt  = document.getElementById('trainingDocProgTxt');
+  const progBar  = document.getElementById('trainingDocProgBar');
+  if (progWrap) progWrap.classList.add('visible');
+
+  const storagePath = `training/${secId}/${Date.now()}_${file.name}`;
+  const storageRef  = ref(storage, storagePath);
+  const task        = uploadBytesResumable(storageRef, file);
+
+  task.on('state_changed',
+    snap => {
+      const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+      if (progTxt) progTxt.textContent = `Uploading… ${pct}%`;
+      if (progBar) progBar.style.width = pct + '%';
+    },
+    err => {
+      if (progTxt) progTxt.textContent = 'Upload failed — check Storage rules.';
+      console.error(err);
+    },
+    async () => {
+      const url = await getDownloadURL(task.snapshot.ref);
+      const sec = sections.find(s => s.id === secId);
+      if (!sec) return;
+      setSaving();
+      const newDoc = { id: 'td_' + Date.now(), url, name: file.name, storagePath };
+      await updateDoc(doc(db, 'sections', secId), { trainingDocs: [...(sec.trainingDocs||[]), newDoc] });
+      const drop = document.getElementById('addTrainingDocDropdown');
+      if (drop) drop.classList.remove('open');
+    }
+  );
+}
+
+async function deleteTrainingDoc(secId, docId, storagePath) {
+  const sec = sections.find(s => s.id === secId);
+  if (!sec) return;
+  setSaving();
+  await updateDoc(doc(db, 'sections', secId), { trainingDocs: (sec.trainingDocs||[]).filter(d => d.id !== docId) });
+  if (storagePath) {
+    try { await deleteObject(ref(storage, storagePath)); } catch (_) {}
+  }
 }
 
 // ── Availability Modal ───────────────────────────
