@@ -51,6 +51,16 @@
     }
     .sync-dot.live   { background: var(--teal); }
     .sync-dot.saving { background: var(--yellow); }
+    .sync-dot.error  { background: #e74c3c; }
+
+    .error-toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #e74c3c; color: #fff; padding: .75rem 1.25rem; border-radius: 8px;
+      font-size: .85rem; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,.25);
+      z-index: 9999; opacity: 0; pointer-events: none; transition: opacity .3s;
+      max-width: 90vw; text-align: center;
+    }
+    .error-toast.visible { opacity: 1; }
 
     nav {
       background: var(--white);
@@ -629,6 +639,7 @@
 </nav>
 
 <main id="mainContent"></main>
+<div class="error-toast" id="errorToast"></div>
 
 <div class="confirm-overlay hidden" id="confirmModal">
   <div class="confirm-box">
@@ -678,7 +689,8 @@ setTimeout(() => {
 <script type="module">
 import { initializeApp }                          from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getFirestore, collection, doc, setDoc,
-         updateDoc, deleteDoc, onSnapshot }        from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+         updateDoc, deleteDoc, onSnapshot,
+         runTransaction }                          from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getStorage, ref, uploadBytesResumable,
          getDownloadURL, deleteObject }            from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 
@@ -973,6 +985,45 @@ let seeded         = false;
 const syncDot = document.getElementById('syncDot');
 function setSynced()  { syncDot.className = 'sync-dot live';   syncDot.title = 'Live — changes sync instantly'; }
 function setSaving()  { syncDot.className = 'sync-dot saving'; syncDot.title = 'Saving…'; }
+function setSaveError(err) {
+  syncDot.className = 'sync-dot error';
+  syncDot.title = 'Save failed — your last change was NOT saved.';
+  showErrorToast('Save failed — your change was NOT saved. Check your connection and try again.');
+  console.error('Firestore write failed:', err);
+}
+
+let _errorToastTimer = null;
+function showErrorToast(msg) {
+  const el = document.getElementById('errorToast');
+  if (!el) return;
+  el.textContent = '⚠️ ' + msg;
+  el.classList.add('visible');
+  clearTimeout(_errorToastTimer);
+  _errorToastTimer = setTimeout(() => el.classList.remove('visible'), 6000);
+}
+
+// ── Safe, race-condition-free writes ─────────────
+// Every write to a section document goes through this helper. It uses a
+// Firestore transaction, which reads the CURRENT server data at write time
+// (not a possibly-stale local copy) and automatically retries if another
+// user saved a change in between. This prevents two people editing at the
+// same time from silently overwriting each other's data.
+async function safeUpdateSection(secId, updater) {
+  setSaving();
+  try {
+    await runTransaction(db, async (tx) => {
+      const ref  = doc(db, 'sections', secId);
+      const snap = await tx.get(ref);
+      if (!snap.exists()) throw new Error(`Section "${secId}" no longer exists`);
+      const updates = updater(snap.data()) || {};
+      if (Object.keys(updates).length > 0) tx.update(ref, updates);
+    });
+    setSynced();
+  } catch (err) {
+    setSaveError(err);
+    throw err;
+  }
+}
 
 // ── Date ─────────────────────────────────────────
 document.getElementById('headerDate').textContent =
@@ -1000,7 +1051,7 @@ onSnapshot(sectionsRef, async snapshot => {
       const seededItems = OPENING_CHECKLIST_ITEMS.map(i =>
         i.type === 'header' ? i : { ...i, due: getDefaultDue(i.id) }
       );
-      updateDoc(doc(db, 'sections', 'opening-checklist'), { items: seededItems });
+      updateDoc(doc(db, 'sections', 'opening-checklist'), { items: seededItems }).catch(console.error);
     } else if (ocDoc && ocDoc.data().items) {
       const existing     = ocDoc.data().items;
       const deletedIds   = new Set(ocDoc.data().deletedItemIds || []);
@@ -1033,7 +1084,7 @@ onSnapshot(sectionsRef, async snapshot => {
             }
           }
         }
-        updateDoc(doc(db, 'sections', 'opening-checklist'), { items: result });
+        updateDoc(doc(db, 'sections', 'opening-checklist'), { items: result }).catch(console.error);
       } else {
         migrationDone = true; // all migrations satisfied — skip on future snapshots
       }
@@ -1042,7 +1093,7 @@ onSnapshot(sectionsRef, async snapshot => {
     // Create any missing default sections (merge:true — never overwrites existing data)
     for (const def of DEFAULT_SECTIONS) {
       if (!snapshot.docs.find(d => d.id === def.id)) {
-        setDoc(doc(db, 'sections', def.id), def, { merge: true });
+        setDoc(doc(db, 'sections', def.id), def, { merge: true }).catch(console.error);
       }
     }
   }
@@ -1061,7 +1112,7 @@ onSnapshot(sectionsRef, async snapshot => {
     if (missingDocs.length > 0) {
       updateDoc(doc(db, 'sections', 'restaurant-plans'), {
         documents: [...existingDocs, ...missingDocs]
-      });
+      }).catch(console.error);
     }
   }
 
@@ -1254,25 +1305,20 @@ function renderHiring(main, sec) {
 }
 
 async function addCandidate(secId) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
   const newC = { id: 'c_' + Date.now(), name:'', age:'', dob:'', interviewDate:'', interviewTime:'', hired:'', trainingRestaurant:'', comments:'', availability:{} };
-  await updateDoc(doc(db, 'sections', secId), { candidates: [...(sec.candidates||[]), newC] });
+  await safeUpdateSection(secId, data => ({ candidates: [...(data.candidates||[]), newC] })).catch(()=>{});
 }
 
 async function updateCandidate(secId, cid, field, value) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { candidates: (sec.candidates||[]).map(c => c.id === cid ? {...c, [field]: value} : c) });
+  await safeUpdateSection(secId, data => ({
+    candidates: (data.candidates||[]).map(c => c.id === cid ? {...c, [field]: value} : c)
+  })).catch(()=>{});
 }
 
 async function deleteCandidate(secId, cid) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { candidates: (sec.candidates||[]).filter(c => c.id !== cid) });
+  await safeUpdateSection(secId, data => ({
+    candidates: (data.candidates||[]).filter(c => c.id !== cid)
+  })).catch(()=>{});
 }
 
 async function uploadTrainingDoc(secId, file) {
@@ -1292,27 +1338,26 @@ async function uploadTrainingDoc(secId, file) {
       if (progBar) progBar.style.width = pct + '%';
     },
     err => {
-      if (progTxt) progTxt.textContent = 'Upload failed — check Storage rules.';
+      progTxt && (progTxt.textContent = 'Upload failed — check Storage rules.');
+      showErrorToast('File upload failed. Please try again.');
       console.error(err);
     },
     async () => {
       const url = await getDownloadURL(task.snapshot.ref);
-      const sec = sections.find(s => s.id === secId);
-      if (!sec) return;
-      setSaving();
       const newDoc = { id: 'td_' + Date.now(), url, name: file.name, storagePath };
-      await updateDoc(doc(db, 'sections', secId), { trainingDocs: [...(sec.trainingDocs||[]), newDoc] });
-      const drop = document.getElementById('addTrainingDocDropdown');
-      if (drop) drop.classList.remove('open');
+      try {
+        await safeUpdateSection(secId, data => ({ trainingDocs: [...(data.trainingDocs||[]), newDoc] }));
+        const drop = document.getElementById('addTrainingDocDropdown');
+        if (drop) drop.classList.remove('open');
+      } catch (_) {}
     }
   );
 }
 
 async function deleteTrainingDoc(secId, docId, storagePath) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { trainingDocs: (sec.trainingDocs||[]).filter(d => d.id !== docId) });
+  await safeUpdateSection(secId, data => ({
+    trainingDocs: (data.trainingDocs||[]).filter(d => d.id !== docId)
+  })).catch(()=>{});
   if (storagePath) {
     try { await deleteObject(ref(storage, storagePath)); } catch (_) {}
   }
@@ -1365,11 +1410,14 @@ function openAvailModal(secId, candidate) {
       hoursAvailable: document.getElementById('av_hoursAvailable').value,
       leavePlanned:   document.getElementById('av_leavePlanned').value,
     };
-    const sec = sections.find(s => s.id === secId);
-    if (!sec) { closeAvailModal(); return; }
-    setSaving();
-    await updateDoc(doc(db, 'sections', secId), { candidates: (sec.candidates||[]).map(c => c.id === candidate.id ? {...c, availability: newAv} : c) });
-    closeAvailModal();
+    try {
+      await safeUpdateSection(secId, data => ({
+        candidates: (data.candidates||[]).map(c => c.id === candidate.id ? {...c, availability: newAv} : c)
+      }));
+      closeAvailModal();
+    } catch (_) {
+      // Keep the modal open on failure so the user's entered data isn't lost — they can retry Save.
+    }
   });
 }
 
@@ -1662,25 +1710,21 @@ function renderPlanner(main, sec) {
 }
 
 async function addCalendarEntry(secId, key, text) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  const existing = getCalEntries(sec.notes || {}, key);
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { [`notes.${key}`]: [...existing, {id:'e_'+Date.now(), text}] });
+  await safeUpdateSection(secId, data => ({
+    [`notes.${key}`]: [...getCalEntries(data.notes||{}, key), {id:'e_'+Date.now(), text}]
+  })).catch(()=>{});
 }
 
 async function updateCalendarEntry(secId, key, entryId, text) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { [`notes.${key}`]: getCalEntries(sec.notes||{},key).map(e => e.id===entryId ? {...e,text} : e) });
+  await safeUpdateSection(secId, data => ({
+    [`notes.${key}`]: getCalEntries(data.notes||{},key).map(e => e.id===entryId ? {...e,text} : e)
+  })).catch(()=>{});
 }
 
 async function deleteCalendarEntry(secId, key, entryId) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { [`notes.${key}`]: getCalEntries(sec.notes||{},key).filter(e => e.id!==entryId) });
+  await safeUpdateSection(secId, data => ({
+    [`notes.${key}`]: getCalEntries(data.notes||{},key).filter(e => e.id!==entryId)
+  })).catch(()=>{});
 }
 
 function renderNav() {
@@ -2201,48 +2245,45 @@ function renderSection(main, sec) {
 
 // ── Firestore writes ─────────────────────────────
 async function toggleItem(secId, itemId) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  const newItems = (sec.items||[]).map(i => i.id === itemId ? {...i, done: !i.done} : i);
-  await updateDoc(doc(db, 'sections', secId), { items: newItems });
+  await safeUpdateSection(secId, data => ({
+    items: (data.items||[]).map(i => i.id === itemId ? {...i, done: !i.done} : i)
+  })).catch(()=>{});
 }
 
 async function addItem(secId) {
   const input = document.getElementById('newItemInput');
   const text  = input.value.trim();
   if (!text) return;
-  input.value = '';
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
   const newItem  = { id: 'i_' + Date.now(), text, done: false };
-  await updateDoc(doc(db, 'sections', secId), { items: [...(sec.items||[]), newItem] });
-  setTimeout(() => { const el = document.getElementById('newItemInput'); if (el) el.focus(); }, 50);
+  try {
+    await safeUpdateSection(secId, data => ({ items: [...(data.items||[]), newItem] }));
+    input.value = '';
+    setTimeout(() => { const el = document.getElementById('newItemInput'); if (el) el.focus(); }, 50);
+  } catch (_) {
+    // Leave the typed text in the input on failure so nothing is lost — user can retry.
+  }
 }
 
 async function deleteItem(secId, itemId) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  const newItems = (sec.items||[]).filter(i => i.id !== itemId);
-  // If deleting a default template item, record it so the migration never re-inserts it
-  const isTemplateItem = !/^i_/.test(itemId);
-  const update = { items: newItems };
-  if (isTemplateItem) update.deletedItemIds = [...(sec.deletedItemIds||[]), itemId];
-  await updateDoc(doc(db, 'sections', secId), update);
+  await safeUpdateSection(secId, data => {
+    const newItems = (data.items||[]).filter(i => i.id !== itemId);
+    // If deleting a default template item, record it so the migration never re-inserts it
+    const isTemplateItem = !/^i_/.test(itemId);
+    const update = { items: newItems };
+    if (isTemplateItem) update.deletedItemIds = [...(data.deletedItemIds||[]), itemId];
+    return update;
+  }).catch(()=>{});
 }
 
 async function saveItemField(secId, itemId, field, value) {
+  // Cheap early-exit using the local cache to avoid an unnecessary transaction
+  // on every blur/change; the actual write below always reads fresh server data.
   const sec  = sections.find(s => s.id === secId);
-  if (!sec) return;
-  const item = (sec.items||[]).find(i => i.id === itemId);
-  if (!item) return;
-  // Guard: skip if value hasn't changed (prevents double-fire from change+blur)
-  if (String(item[field] ?? '') === value) return;
-  const newItems = (sec.items||[]).map(i => i.id === itemId ? {...i, [field]: value} : i);
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { items: newItems });
+  const item = sec && (sec.items||[]).find(i => i.id === itemId);
+  if (item && String(item[field] ?? '') === value) return;
+  await safeUpdateSection(secId, data => ({
+    items: (data.items||[]).map(i => i.id === itemId ? {...i, [field]: value} : i)
+  })).catch(()=>{});
 }
 
 async function uploadPlanDoc(secId, file) {
@@ -2262,27 +2303,26 @@ async function uploadPlanDoc(secId, file) {
       if (progBar) progBar.style.width = pct + '%';
     },
     err => {
-      if (progTxt) progTxt.textContent = 'Upload failed — check Storage rules.';
+      progTxt && (progTxt.textContent = 'Upload failed — check Storage rules.');
+      showErrorToast('File upload failed. Please try again.');
       console.error(err);
     },
     async () => {
       const url = await getDownloadURL(task.snapshot.ref);
-      const sec = sections.find(s => s.id === secId);
-      if (!sec) return;
-      setSaving();
       const newDoc = { id: 'd_' + Date.now(), url, name: file.name, storagePath };
-      await updateDoc(doc(db, 'sections', secId), { documents: [...(sec.documents||[]), newDoc] });
-      const drop = document.getElementById('addDocDropdown');
-      if (drop) drop.classList.remove('open');
+      try {
+        await safeUpdateSection(secId, data => ({ documents: [...(data.documents||[]), newDoc] }));
+        const drop = document.getElementById('addDocDropdown');
+        if (drop) drop.classList.remove('open');
+      } catch (_) {}
     }
   );
 }
 
 async function deletePlanDoc(secId, docId, storagePath) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { documents: (sec.documents||[]).filter(d => d.id !== docId) });
+  await safeUpdateSection(secId, data => ({
+    documents: (data.documents||[]).filter(d => d.id !== docId)
+  })).catch(()=>{});
   if (storagePath) {
     try { await deleteObject(ref(storage, storagePath)); } catch (_) {}
   }
@@ -2292,87 +2332,78 @@ async function addQuery(secId) {
   const input = document.getElementById('newQueryInput');
   const text  = input.value.trim();
   if (!text) return;
-  input.value = '';
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
   const newQuery = { id: 'q_' + Date.now(), text, done: false };
-  await updateDoc(doc(db, 'sections', secId), { queries: [...(sec.queries||[]), newQuery] });
-  setTimeout(() => { const el = document.getElementById('newQueryInput'); if (el) el.focus(); }, 50);
+  try {
+    await safeUpdateSection(secId, data => ({ queries: [...(data.queries||[]), newQuery] }));
+    input.value = '';
+    setTimeout(() => { const el = document.getElementById('newQueryInput'); if (el) el.focus(); }, 50);
+  } catch (_) {
+    // Leave the typed text in the input on failure so nothing is lost.
+  }
 }
 
 async function editQuery(secId, queryId, text) {
   if (!text.trim()) return;
   const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  const existing = (sec.queries||[]).find(q => q.id === queryId);
-  if (!existing || existing.text === text) return;
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { queries: (sec.queries||[]).map(q => q.id === queryId ? {...q, text} : q) });
+  const existing = sec && (sec.queries||[]).find(q => q.id === queryId);
+  if (existing && existing.text === text) return;
+  await safeUpdateSection(secId, data => ({
+    queries: (data.queries||[]).map(q => q.id === queryId ? {...q, text} : q)
+  })).catch(()=>{});
 }
 
 async function toggleQuery(secId, queryId) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { queries: (sec.queries||[]).map(q => q.id === queryId ? {...q, done: !q.done} : q) });
+  await safeUpdateSection(secId, data => ({
+    queries: (data.queries||[]).map(q => q.id === queryId ? {...q, done: !q.done} : q)
+  })).catch(()=>{});
 }
 
 async function deleteQuery(secId, queryId) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { queries: (sec.queries||[]).filter(q => q.id !== queryId) });
+  await safeUpdateSection(secId, data => ({
+    queries: (data.queries||[]).filter(q => q.id !== queryId)
+  })).catch(()=>{});
 }
 
 // ── Quotes write functions ────────────────────────
 async function addQuoteRow(secId) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
   const newRow = { id: 'qr_' + Date.now(), item: '', quoted: '', actual: '' };
-  await updateDoc(doc(db, 'sections', secId), { quoteRows: [...(sec.quoteRows||[]), newRow] });
-  // Focus the new row's item input after render
-  setTimeout(() => {
-    const inputs = document.querySelectorAll(`.qt-input[data-qrid="${newRow.id}"]`);
-    if (inputs[0]) inputs[0].focus();
-  }, 100);
+  try {
+    await safeUpdateSection(secId, data => ({ quoteRows: [...(data.quoteRows||[]), newRow] }));
+    // Focus the new row's item input after render
+    setTimeout(() => {
+      const inputs = document.querySelectorAll(`.qt-input[data-qrid="${newRow.id}"]`);
+      if (inputs[0]) inputs[0].focus();
+    }, 100);
+  } catch (_) {}
 }
 
 async function saveQuoteRowField(secId, rowId, field, value) {
   const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  const row = (sec.quoteRows||[]).find(r => r.id === rowId);
-  if (!row) return;
-  if (String(row[field] ?? '') === value) return;
-  const newRows = (sec.quoteRows||[]).map(r => r.id === rowId ? {...r, [field]: value} : r);
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { quoteRows: newRows });
+  const row = sec && (sec.quoteRows||[]).find(r => r.id === rowId);
+  if (row && String(row[field] ?? '') === value) return;
+  await safeUpdateSection(secId, data => ({
+    quoteRows: (data.quoteRows||[]).map(r => r.id === rowId ? {...r, [field]: value} : r)
+  })).catch(()=>{});
 }
 
 async function deleteQuoteRow(secId, rowId) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { quoteRows: (sec.quoteRows||[]).filter(r => r.id !== rowId) });
+  await safeUpdateSection(secId, data => ({
+    quoteRows: (data.quoteRows||[]).filter(r => r.id !== rowId)
+  })).catch(()=>{});
 }
 
 async function addQuoteDoc(secId, url, name) {
   url = url.trim();
   if (!url) return;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
   const newDoc = { id: 'qd_' + Date.now(), url, name: name.trim() || url };
-  await updateDoc(doc(db, 'sections', secId), { documents: [...(sec.documents||[]), newDoc] });
+  await safeUpdateSection(secId, data => ({ documents: [...(data.documents||[]), newDoc] })).catch(()=>{});
 }
 
 async function deleteQuoteDoc(secId, docId) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), { documents: (sec.documents||[]).filter(d => d.id !== docId) });
+  await safeUpdateSection(secId, data => ({
+    documents: (data.documents||[]).filter(d => d.id !== docId)
+  })).catch(()=>{});
 }
 
 async function uploadAttachment(secId, itemId, file) {
@@ -2392,32 +2423,29 @@ async function uploadAttachment(secId, itemId, file) {
       if (progBar)  progBar.style.width  = pct + '%';
     },
     err => {
-      if (progTxt) progTxt.textContent = 'Upload failed — check Storage rules.';
+      progTxt && (progTxt.textContent = 'Upload failed — check Storage rules.');
+      showErrorToast('File upload failed. Please try again.');
       console.error(err);
     },
     async () => {
       const url = await getDownloadURL(task.snapshot.ref);
-      const sec = sections.find(s => s.id === secId);
-      if (!sec) return;
-      setSaving();
       const att = { id: 'a_' + Date.now(), url, name: file.name, storagePath };
-      await updateDoc(doc(db, 'sections', secId), {
-        items: (sec.items||[]).map(i => i.id !== itemId ? i : { ...i, attachments: [...(i.attachments||[]), att] })
-      });
-      // Close dropdown after success
-      const drop = document.getElementById('attdrop-' + itemId);
-      if (drop) drop.classList.remove('open');
+      try {
+        await safeUpdateSection(secId, data => ({
+          items: (data.items||[]).map(i => i.id !== itemId ? i : { ...i, attachments: [...(i.attachments||[]), att] })
+        }));
+        // Close dropdown after success
+        const drop = document.getElementById('attdrop-' + itemId);
+        if (drop) drop.classList.remove('open');
+      } catch (_) {}
     }
   );
 }
 
 async function deleteAttachment(secId, itemId, attId, storagePath) {
-  const sec = sections.find(s => s.id === secId);
-  if (!sec) return;
-  setSaving();
-  await updateDoc(doc(db, 'sections', secId), {
-    items: (sec.items||[]).map(i => i.id !== itemId ? i : { ...i, attachments: (i.attachments||[]).filter(a => a.id !== attId) })
-  });
+  await safeUpdateSection(secId, data => ({
+    items: (data.items||[]).map(i => i.id !== itemId ? i : { ...i, attachments: (i.attachments||[]).filter(a => a.id !== attId) })
+  })).catch(()=>{});
   if (storagePath) {
     try { await deleteObject(ref(storage, storagePath)); } catch (_) {}
   }
@@ -2500,9 +2528,14 @@ async function saveNewSection() {
     order: sections.length + 10,
     items: []
   };
-  await setDoc(doc(db, 'sections', id), sec);
-  closeAddSectionModal();
-  showSection(id);
+  try {
+    await setDoc(doc(db, 'sections', id), sec);
+    setSynced();
+    closeAddSectionModal();
+    showSection(id);
+  } catch (err) {
+    setSaveError(err);
+  }
 }
 
 // Expose render for the fallback timeout
