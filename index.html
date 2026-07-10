@@ -154,6 +154,20 @@
     .filter-select.active { border-color: var(--blue); background-color: #e8f6fd; color: var(--blue); }
     .filter-count { font-size: .78rem; color: #9aabb8; align-self: center; margin-left: auto; }
 
+    .filter-search-wrap { position: relative; flex: 1 1 200px; max-width: 260px; }
+    .filter-search-wrap .search-icon {
+      position: absolute; left: .8rem; top: 50%; transform: translateY(-50%);
+      font-size: .8rem; color: #9aabb8; pointer-events: none;
+    }
+    .filter-search {
+      width: 100%; padding: .5rem .9rem .5rem 2rem;
+      border: 2px solid var(--border); border-radius: 20px;
+      background: var(--white); font-size: .85rem; font-family: inherit;
+      color: var(--dark); outline: none; transition: border-color .18s; box-sizing: border-box;
+    }
+    .filter-search:focus, .filter-search:hover { border-color: var(--blue); }
+    .filter-search.active { border-color: var(--blue); background-color: #e8f6fd; }
+
     .checklist { display: flex; flex-direction: column; gap: .55rem; }
     .checklist-item {
       background: var(--white); border: 1px solid var(--border);
@@ -1142,6 +1156,7 @@ async function seedDefaults() {
 let filterStatus   = 'all';
 let filterWho      = 'all';
 let filterGroup    = 'all';
+let filterSearch   = '';
 let migrationDone  = false;
 
 // ── Calendar state ───────────────────────────────
@@ -2043,6 +2058,11 @@ function renderSection(main, sec) {
     const outstanding = taskItems.filter(i => !i.done).length;
     filterBar = `
       <div class="filter-bar">
+        <div class="filter-search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="filter-search${filterSearch?' active':''}" id="filterSearch"
+            placeholder="Search tasks…" value="${esc(filterSearch)}" />
+        </div>
         <select class="filter-select${filterStatus!=='all'?' active':''}" id="filterStatus">
           <option value="all">All Tasks</option>
           <option value="outstanding" ${filterStatus==='outstanding'?'selected':''}>Outstanding (${outstanding})</option>
@@ -2071,12 +2091,14 @@ function renderSection(main, sec) {
       else { itemGroup.set(item.id, currentHeader); }
     }
 
+    const searchTerm = filterSearch.trim().toLowerCase();
     const matchesFilters = i => {
       if (i.type === 'header') return true; // handle below
       if (filterStatus === 'outstanding' && i.done)  return false;
       if (filterStatus === 'done'        && !i.done) return false;
       if (filterWho   !== 'all' && (i.who||'') !== filterWho) return false;
       if (filterGroup !== 'all' && itemGroup.get(i.id) !== filterGroup) return false;
+      if (searchTerm && !(i.text||'').toLowerCase().includes(searchTerm)) return false;
       return true;
     };
     // Remove headers that have no visible tasks directly under them (stop at next header)
@@ -2183,11 +2205,24 @@ function renderSection(main, sec) {
     const fs = document.getElementById('filterStatus');
     const fg = document.getElementById('filterGroup');
     const fw = document.getElementById('filterWho');
+    const fSearch = document.getElementById('filterSearch');
     const fc = document.getElementById('filterCount');
     if (fc) fc.textContent = `${visibleTaskCount} task${visibleTaskCount!==1?'s':''} shown`;
     if (fs) fs.addEventListener('change', () => { filterStatus = fs.value; renderCurrent(); });
     if (fg) fg.addEventListener('change', () => { filterGroup  = fg.value; renderCurrent(); });
     if (fw) fw.addEventListener('change', () => { filterWho    = fw.value; renderCurrent(); });
+    if (fSearch) {
+      fSearch.addEventListener('input', () => {
+        filterSearch = fSearch.value;
+        const cursorPos = fSearch.selectionStart;
+        renderCurrent();
+        const newSearch = document.getElementById('filterSearch');
+        if (newSearch) {
+          newSearch.focus();
+          newSearch.setSelectionRange(cursorPos, cursorPos);
+        }
+      });
+    }
   }
 
   main.querySelectorAll('[data-toggle]').forEach(el => {
