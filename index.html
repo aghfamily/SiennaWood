@@ -1343,13 +1343,25 @@ function exportCandidatesToExcel(candidates) {
     row['Hours Available (per week)'] = av.hoursAvailable || '';
     return row;
   });
-  const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{}]);
+  const colCount = 16;
+  const dateStr = new Date().toISOString().slice(0,10);
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Agostino Group Holdings'],
+    ['Sienna Wood — Interview List'],
+    [`Exported ${dateStr}`]
+  ]);
+  XLSX.utils.sheet_add_json(ws, rows.length ? rows : [{}], { origin: 'A5' });
   ws['!cols'] = [{wch:20},{wch:6},{wch:12},{wch:14},{wch:14},{wch:8},{wch:18},{wch:30},
                  {wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:20}];
-  ws['!autofilter'] = { ref: ws['!ref'] };
+  ws['!merges'] = [
+    { s:{r:0,c:0}, e:{r:0,c:colCount-1} },
+    { s:{r:1,c:0}, e:{r:1,c:colCount-1} },
+    { s:{r:2,c:0}, e:{r:2,c:colCount-1} }
+  ];
+  const dataRows = rows.length || 1;
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s:{r:4,c:0}, e:{r:4+dataRows,c:colCount-1} }) };
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Interview List');
-  const dateStr = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, `Sienna_Wood_Interview_List_${dateStr}.xlsx`);
 }
 
