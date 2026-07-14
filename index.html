@@ -700,6 +700,8 @@ setTimeout(() => {
 }, 10000);
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 <script type="module">
 import { initializeApp }                          from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getFirestore, collection, doc, setDoc,
@@ -1235,6 +1237,7 @@ function renderHiring(main, sec) {
         <tbody id="hiringBody">${rows}</tbody>
       </table>
       <button class="add-row-btn" id="addCandidateBtn">+ Add Candidate</button>
+      <button class="add-row-btn" id="exportCandidatesBtn" style="margin-left:.5rem;background:#00C9B1">📊 Export to Excel</button>
     </div>
 
     <div class="plans-block" style="margin-top:2rem">
@@ -1292,6 +1295,7 @@ function renderHiring(main, sec) {
   });
 
   document.getElementById('addCandidateBtn').addEventListener('click', () => addCandidate(sec.id));
+  document.getElementById('exportCandidatesBtn').addEventListener('click', () => exportCandidatesToExcel(sec.candidates||[]));
 
   // Training docs — delete
   main.querySelectorAll('[data-tdel]').forEach(el => {
@@ -1317,6 +1321,35 @@ function renderHiring(main, sec) {
     uploadTrainingDoc(sec.id, file);
     trainingFileInput.value = '';
   });
+}
+
+const AVAIL_DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+function exportCandidatesToExcel(candidates) {
+  if (!window.XLSX) { showErrorToast('Export library failed to load — check your connection and try again.'); return; }
+  const rows = candidates.map(c => {
+    const av = c.availability || {};
+    const row = {
+      'Name': c.name || '',
+      'Age': c.age || '',
+      'DOB': c.dob || '',
+      'Interview Date': c.interviewDate || '',
+      'Interview Time': c.interviewTime || '',
+      'Hired': c.hired || '',
+      'Training Restaurant': c.trainingRestaurant || '',
+      'Comments': c.comments || ''
+    };
+    AVAIL_DAYS.forEach(day => { row[day] = av[day.toLowerCase()] || ''; });
+    row['Hours Available (per week)'] = av.hoursAvailable || '';
+    return row;
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:20},{wch:6},{wch:12},{wch:14},{wch:14},{wch:8},{wch:18},{wch:30},
+                 {wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:20}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Interview List');
+  const dateStr = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `Sienna_Wood_Interview_List_${dateStr}.xlsx`);
 }
 
 async function addCandidate(secId) {
