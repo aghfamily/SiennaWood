@@ -1343,9 +1343,10 @@ function exportCandidatesToExcel(candidates) {
     row['Hours Available (per week)'] = av.hoursAvailable || '';
     return row;
   });
-  const ws = XLSX.utils.json_to_sheet(rows);
+  const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{}]);
   ws['!cols'] = [{wch:20},{wch:6},{wch:12},{wch:14},{wch:14},{wch:8},{wch:18},{wch:30},
                  {wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:20}];
+  ws['!autofilter'] = { ref: ws['!ref'] };
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Interview List');
   const dateStr = new Date().toISOString().slice(0,10);
